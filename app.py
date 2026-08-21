@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+from streamlit_option_menu import option_menu
 
 # 1. ตั้งค่าหน้าเว็บ
 st.set_page_config(
@@ -8,17 +9,9 @@ st.set_page_config(
     layout="wide"
 )
 
-# 2. ปรับแต่งดีไซน์ด้วย CSS แบบ ปลอดภัย
+# 2. ปรับแต่งดีไซน์ CSS เพิ่มเติม
 st.markdown("""
 <style>
-    /* แต่งเมนูด้านข้าง */
-    [data-testid="stSidebar"] {
-        background-color: #0f172a;
-    }
-    [data-testid="stSidebar"] * {
-        color: #f8fafc !important;
-    }
-    /* แต่งกล่องสรุปตัวเลข */
     div[data-testid="stMetric"] {
         background-color: #ffffff;
         padding: 16px;
@@ -26,7 +19,6 @@ st.markdown("""
         box-shadow: 0 2px 8px rgba(0,0,0,0.08);
         border: 1px solid #e2e8f0;
     }
-    /* แต่งปุ่มกด */
     .stButton>button {
         border-radius: 8px;
         font-weight: bold;
@@ -51,23 +43,32 @@ other_exp = sum(e["amount"] for e in st.session_state.expenses_history)
 total_exp = total_cogs + other_exp
 net_profit = total_rev - total_exp
 
-# ------------------ เมนูด้านข้าง ------------------
-st.sidebar.title("🏛️ ระบบสหกรณ์")
-st.sidebar.caption("จัดการสต็อกและบัญชีประจำปี")
-
-menu = st.sidebar.radio(
-    "เมนูหลัก",
-    [
-        "📊 แดชบอร์ดภาพรวม",
-        "📦 จัดการสต็อกสินค้า",
-        "🛒 บันทึกการขาย",
-        "💸 บันทึกรายจ่ายอื่นๆ",
-        "📈 สรุปบัญชีประจำปี & ปันผล"
-    ]
+# ------------------ เมนูไอคอนสวยงามด้านบน (NAVIGATION BAR) ------------------
+menu = option_menu(
+    menu_title=None,
+    options=["แดชบอร์ดภาพรวม", "จัดการสต็อกสินค้า", "บันทึกการขาย", "บันทึกรายจ่ายอื่นๆ", "สรุปบัญชีประจำปี & ปันผล"],
+    icons=["house-door", "box-seam", "cart-check", "receipt", "graph-up-arrow"],
+    default_index=0,
+    orientation="horizontal",
+    styles={
+        "container": {"padding": "5px !important", "background-color": "#0f172a", "border-radius": "12px"},
+        "icon": {"color": "#38bdf8", "font-size": "18px"},
+        "nav-link": {
+            "font-size": "15px",
+            "text-align": "center",
+            "margin": "0px 4px",
+            "color": "#f8fafc",
+            "--hover-color": "#1e293b",
+            "border-radius": "8px"
+        },
+        "nav-link-selected": {"background-color": "#0284c7", "color": "white", "font-weight": "bold"},
+    }
 )
 
+st.write("<br>", unsafe_allow_html=True)
+
 # ------------------ 1. แดชบอร์ดภาพรวม ------------------
-if menu == "📊 แดชบอร์ดภาพรวม":
+if menu == "แดชบอร์ดภาพรวม":
     st.title("📊 แดชบอร์ดภาพรวม")
     st.caption("สรุปข้อมูลสต็อก ยอดขาย และกำไรสุทธิแบบเรียลไทม์")
     st.write("---")
@@ -111,7 +112,7 @@ if menu == "📊 แดชบอร์ดภาพรวม":
             st.success("ไม่มีสินค้ารายการใดใกล้หมด")
 
 # ------------------ 2. จัดการสต็อกสินค้า ------------------
-elif menu == "📦 จัดการสต็อกสินค้า":
+elif menu == "จัดการสต็อกสินค้า":
     st.title("📦 จัดการสต็อกสินค้า")
     
     tab1, tab2, tab3 = st.tabs(["📋 รายการสินค้าทั้งหมด", "➕ เพิ่มสินค้าใหม่", "✏️ แก้ไข/ลบสินค้า"])
@@ -188,7 +189,7 @@ elif menu == "📦 จัดการสต็อกสินค้า":
                     st.rerun()
 
 # ------------------ 3. บันทึกการขาย ------------------
-elif menu == "🛒 บันทึกการขาย":
+elif menu == "บันทึกการขาย":
     st.title("🛒 บันทึกการขายสินค้า")
 
     if not st.session_state.products:
@@ -237,7 +238,7 @@ elif menu == "🛒 บันทึกการขาย":
                 st.info("ยังไม่มีประวัติการขาย")
 
 # ------------------ 4. บันทึกรายจ่ายอื่นๆ ------------------
-elif menu == "💸 บันทึกรายจ่ายอื่นๆ":
+elif menu == "บันทึกรายจ่ายอื่นๆ":
     st.title("💸 บันทึกรายจ่ายอื่นๆ")
     st.caption("สำหรับค่าน้ำ ค่าไฟ ค่าเช่า หรือค่าใช้จ่ายทั่วไป")
 
@@ -272,7 +273,7 @@ elif menu == "💸 บันทึกรายจ่ายอื่นๆ":
             st.info("ยังไม่มีบันทึกรายจ่าย")
 
 # ------------------ 5. สรุปบัญชีประจำปี & ปันผล ------------------
-elif menu == "📈 สรุปบัญชีประจำปี & ปันผล":
+elif menu == "สรุปบัญชีประจำปี & ปันผล":
     st.title("📈 สรุปผลการดำเนินงานประจำปีและภาษีสหกรณ์")
 
     st.subheader("📋 งบกำไรขาดทุนเบื้องต้น")

@@ -63,7 +63,10 @@ if menu == "แดชบอร์ดภาพรวม":
     with col_alert:
         st.subheader("🚨 เตือนสินค้าใกล้หมด (< 10 ชิ้น)")
         low_stock = [{"ชื่อสินค้า": v["ชื่อสินค้า"], "คงเหลือ": v["จำนวนคงเหลือ"]} for v in st.session_state.products.values() if v["จำนวนคงเหลือ"] < 10]
-        st.dataframe(pd.DataFrame(low_stock), use_container_width=True, hide_index=True) if low_stock else st.success("ไม่มีสินค้ารายการใดใกล้หมด")
+        if low_stock:
+            st.dataframe(pd.DataFrame(low_stock), use_container_width=True, hide_index=True)
+        else:
+            st.success("ไม่มีสินค้ารายการใดใกล้หมด")
 
 # ------------------ 2. จัดการสต็อกสินค้า ------------------
 elif menu == "จัดการสต็อกสินค้า":
@@ -71,7 +74,10 @@ elif menu == "จัดการสต็อกสินค้า":
     tab1, tab2, tab3 = st.tabs(["📋 รายการสินค้าทั้งหมด", "➕ เพิ่มสินค้าใหม่", "✏️ แก้ไข/ลบสินค้า"])
 
     with tab1:
-        st.dataframe(pd.DataFrame.from_dict(st.session_state.products, orient="index"), use_container_width=True) if st.session_state.products else st.info("ยังไม่มีสินค้าในระบบ กรุณาเพิ่มสินค้าใหม่")
+        if st.session_state.products:
+            st.dataframe(pd.DataFrame.from_dict(st.session_state.products, orient="index"), use_container_width=True)
+        else:
+            st.info("ยังไม่มีสินค้าในระบบ กรุณาเพิ่มสินค้าใหม่")
 
     with tab2:
         st.subheader("เพิ่มสินค้าใหม่เข้าคลัง")

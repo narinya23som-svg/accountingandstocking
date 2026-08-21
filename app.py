@@ -1,7 +1,5 @@
 import streamlit as st
 import pandas as pd
-import json
-import os
 from streamlit_option_menu import option_menu
 
 st.set_page_config(page_title="ระบบจัดการสต็อกและบัญชีสหกรณ์", page_icon="🏛️", layout="wide")
@@ -12,33 +10,10 @@ div[data-testid="stMetric"] { background-color: #ffffff; padding: 16px; border-r
 .stButton>button { border-radius: 8px; font-weight: bold; }
 </style>""", unsafe_allow_html=True)
 
-# ------------------ ระบบอ่าน/เขียนไฟล์อัตโนมัติ (JSON) ------------------
-DB_FILE = "coop_data.json"
-
-def load_data():
-    """ฟังก์ชันโหลดข้อมูลจากไฟล์ JSON"""
-    if os.path.exists(DB_FILE):
-        with open(DB_FILE, "r", encoding="utf-8") as f:
-            return json.load(f)
-    return {"products": {}, "sales_history": [], "expenses_history": []}
-
-def save_data():
-    """ฟังก์ชันบันทึกข้อมูลลงไฟล์ JSON"""
-    data = {
-        "products": st.session_state.products,
-        "sales_history": st.session_state.sales_history,
-        "expenses_history": st.session_state.expenses_history
-    }
-    with open(DB_FILE, "w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False, indent=4)
-
-# โหลดข้อมูลเข้า Session State เมื่อเปิดเว็บครั้งแรก
-if "initialized" not in st.session_state:
-    saved_data = load_data()
-    st.session_state.products = saved_data.get("products", {})
-    st.session_state.sales_history = saved_data.get("sales_history", [])
-    st.session_state.expenses_history = saved_data.get("expenses_history", [])
-    st.session_state.initialized = True
+# ------------------ SESSION STATE ------------------
+for k in ["products", "sales_history", "expenses_history"]:
+    if k not in st.session_state:
+        st.session_state[k] = {} if k == "products" else []
 
 # คำนวณยอดรวม
 total_rev = sum(s["total_price"] for s in st.session_state.sales_history)
@@ -141,7 +116,6 @@ elif menu == "จัดการสต็อกสินค้า":
                 elif p_id in st.session_state.products: st.error("รหัสสินค้านี้มีอยู่แล้วในระบบ")
                 else:
                     st.session_state.products[p_id] = {"ชื่อสินค้า": p_name, "ต้นทุนต่อชิ้น (บาท)": p_cost, "ราคาขายต่อชิ้น (บาท)": p_price, "จำนวนคงเหลือ": p_qty}
-                    save_data() # บันทึกลงไฟล์ JSON
                     st.success(f"เพิ่มสินค้า '{p_name}' เรียบร้อยแล้ว!"); st.rerun()
 
     with tab3:
@@ -161,14 +135,12 @@ elif menu == "จัดการสต็อกสินค้า":
                     e_qty = st.number_input("จำนวนคงเหลือ", value=int(curr["จำนวนคงเหลือ"]))
                     if st.form_submit_button("บันทึกการแก้ไข"):
                         st.session_state.products[select_p_id] = {"ชื่อสินค้า": e_name, "ต้นทุนต่อชิ้น (บาท)": e_cost, "ราคาขายต่อชิ้น (บาท)": e_price, "จำนวนคงเหลือ": e_qty}
-                        save_data() # บันทึกลงไฟล์ JSON
                         st.success("อัปเดตข้อมูลสินค้าเรียบร้อย!"); st.rerun()
 
             with col_del:
                 st.write("**การดำเนินการลบ**")
                 if st.button("🗑️ ลบสินค้านี้ออกจากระบบ", use_container_width=True):
                     del st.session_state.products[select_p_id]
-                    save_data() # บันทึกลงไฟล์ JSON
                     st.success("ลบสินค้าเรียบร้อยแล้ว!"); st.rerun()
 
 # ------------------ 3. บันทึกการขาย ------------------
@@ -192,30 +164,31 @@ elif menu == "บันทึกการขาย":
                 else:
                     sel_item["จำนวนคงเหลือ"] -= sell_qty
                     st.session_state.sales_history.append({"รหัสสินค้า": sel_id, "ชื่อสินค้า": sel_item["ชื่อสินค้า"], "จำนวน": sell_qty, "total_price": tot_price, "total_cost": sel_item["ต้นทุนต่อชิ้น (บาท)"] * sell_qty})
-                    save_data() # บันทึกลงไฟล์ JSON
                     st.success("บันทึกการขายสำเร็จ!"); st.rerun()
 
         with col_hist:
             st.subheader("ประวัติการขาย")
             if st.session_state.sales_history:
+                # 🛠️ แสดงรายการขายพร้อมปุ่มลบแยกแต่ละแถว
                 for idx, item in enumerate(st.session_state.sales_history):
                     c_info, c_btn = st.columns([3, 1])
                     c_info.write(f"**{idx+1}. {item['รหัสสินค้า']} - {item['ชื่อสินค้า']}** | {item['จำนวน']} ชิ้น (฿{item['total_price']:,.2f})")
                     if c_btn.button("🗑️ ลบ", key=f"del_sale_{idx}"):
+                        # คืนจำนวนสินค้าเข้าสต็อก
                         if item["รหัสสินค้า"] in st.session_state.products:
                             st.session_state.products[item["รหัสสินค้า"]]["จำนวนคงเหลือ"] += item["จำนวน"]
+                        # ลบรายการขาย
                         st.session_state.sales_history.pop(idx)
-                        save_data() # บันทึกลงไฟล์ JSON
-                        st.success("ลบรายการขายเรียบร้อย!")
+                        st.success("ลบรายการขายและคืนสต็อกเรียบร้อย!")
                         st.rerun()
                 
                 st.write("---")
                 if st.button("⚠️ ลบประวัติการขายทั้งหมด"):
+                    # คืนสต็อกทั้งหมดก่อนลบ
                     for item in st.session_state.sales_history:
                         if item["รหัสสินค้า"] in st.session_state.products:
                             st.session_state.products[item["รหัสสินค้า"]]["จำนวนคงเหลือ"] += item["จำนวน"]
                     st.session_state.sales_history = []
-                    save_data() # บันทึกลงไฟล์ JSON
                     st.rerun()
             else: st.info("ยังไม่มีประวัติการขาย")
 
@@ -233,25 +206,23 @@ elif menu == "บันทึกรายจ่ายอื่นๆ":
             if st.form_submit_button("บันทึกรายจ่าย"):
                 if exp_title:
                     st.session_state.expenses_history.append({"รายการ": exp_title, "amount": exp_val})
-                    save_data() # บันทึกลงไฟล์ JSON
                     st.success("บันทึกรายจ่ายเรียบร้อย!"); st.rerun()
 
     with c_exp2:
         st.subheader("ประวัติรายจ่าย")
         if st.session_state.expenses_history:
+            # 🛠️ แสดงรายการรายจ่ายพร้อมปุ่มลบแยกแต่ละแถว
             for idx, item in enumerate(st.session_state.expenses_history):
                 c_info, c_btn = st.columns([3, 1])
                 c_info.write(f"**{idx+1}. {item['รายการ']}** | ฿{item['amount']:,.2f}")
                 if c_btn.button("🗑️ ลบ", key=f"del_exp_{idx}"):
                     st.session_state.expenses_history.pop(idx)
-                    save_data() # บันทึกลงไฟล์ JSON
                     st.success("ลบรายการรายจ่ายเรียบร้อย!")
                     st.rerun()
             
             st.write("---")
             if st.button("⚠️ ลบประวัติรายจ่ายทั้งหมด"): 
                 st.session_state.expenses_history = []
-                save_data() # บันทึกลงไฟล์ JSON
                 st.rerun()
         else: st.info("ยังไม่มีบันทึกรายจ่าย")
 

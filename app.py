@@ -8,6 +8,32 @@ st.set_page_config(
     layout="wide"
 )
 
+# 2. ปรับแต่งดีไซน์ด้วย CSS แบบ ปลอดภัย
+st.markdown("""
+<style>
+    /* แต่งเมนูด้านข้าง */
+    [data-testid="stSidebar"] {
+        background-color: #0f172a;
+    }
+    [data-testid="stSidebar"] * {
+        color: #f8fafc !important;
+    }
+    /* แต่งกล่องสรุปตัวเลข */
+    div[data-testid="stMetric"] {
+        background-color: #ffffff;
+        padding: 16px;
+        border-radius: 10px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        border: 1px solid #e2e8f0;
+    }
+    /* แต่งปุ่มกด */
+    .stButton>button {
+        border-radius: 8px;
+        font-weight: bold;
+    }
+</style>
+""", unsafe_allow_html=True)
+
 # ------------------ SESSION STATE ------------------
 if "products" not in st.session_state:
     st.session_state.products = {}
@@ -44,28 +70,28 @@ menu = st.sidebar.radio(
 if menu == "📊 แดชบอร์ดภาพรวม":
     st.title("📊 แดชบอร์ดภาพรวม")
     st.caption("สรุปข้อมูลสต็อก ยอดขาย และกำไรสุทธิแบบเรียลไทม์")
-    st.divider()
+    st.write("---")
 
     c1, c2, c3, c4 = st.columns(4)
     with c1:
         total_stock = sum(item["จำนวนคงเหลือ"] for item in st.session_state.products.values())
-        st.metric("สินค้าคงคลังรวม (ชิ้น)", f"{total_stock:,}")
+        st.metric("📦 สินค้าคงคลังรวม", f"{total_stock:,} ชิ้น")
         
     with c2:
-        st.metric("รายรับรวมจากการขาย", f"฿{total_rev:,.2f}")
+        st.metric("💰 รายรับรวมจากการขาย", f"฿{total_rev:,.2f}")
 
     with c3:
-        st.metric("รายจ่ายรวมทั้งสิ้น", f"฿{total_exp:,.2f}")
+        st.metric("💸 รายจ่ายรวมทั้งสิ้น", f"฿{total_exp:,.2f}")
 
     with c4:
-        st.metric("กำไรสุทธิประจำปี", f"฿{net_profit:,.2f}")
+        st.metric("📈 กำไรสุทธิประจำปี", f"฿{net_profit:,.2f}")
 
-    st.divider()
+    st.write("---")
 
     col_chart, col_alert = st.columns([2, 1])
 
     with col_chart:
-        st.subheader("📦 ปริมาณสินค้าคงเหลือ")
+        st.subheader("📊 ปริมาณสินค้าคงเหลือ")
         if st.session_state.products:
             df_prod = pd.DataFrame.from_dict(st.session_state.products, orient="index")
             st.bar_chart(df_prod.set_index("ชื่อสินค้า")["จำนวนคงเหลือ"], height=250)
@@ -260,7 +286,7 @@ elif menu == "📈 สรุปบัญชีประจำปี & ปัน�
     ]
     st.table(pd.DataFrame(summary_data))
 
-    st.divider()
+    st.write("---")
 
     st.subheader("🏛️ การจัดสรรกำไรสุทธิประจำปีของสหกรณ์")
     if net_profit > 0:

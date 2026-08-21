@@ -75,7 +75,29 @@ elif menu == "จัดการสต็อกสินค้า":
 
     with tab1:
         if st.session_state.products:
-            st.dataframe(pd.DataFrame.from_dict(st.session_state.products, orient="index"), use_container_width=True)
+            col_search, col_filter = st.columns([2, 1])
+            search_query = col_search.text_input("🔍 ค้นหาสินค้า (พิมพ์ชื่อ หรือ รหัสสินค้า)", "").strip().lower()
+            filter_status = col_filter.selectbox("🌪️ ตัวกรองสถานะ", ["ทั้งหมด", "สินค้าใกล้หมด (< 10)", "สินค้าหมดสต็อก (0)"])
+
+            df_all = pd.DataFrame.from_dict(st.session_state.products, orient="index")
+            df_all.index.name = "รหัสสินค้า"
+            df_filtered = df_all.reset_index()
+
+            if search_query:
+                df_filtered = df_filtered[
+                    df_filtered["ชื่อสินค้า"].str.lower().str.contains(search_query) | 
+                    df_filtered["รหัสสินค้า"].str.lower().str.contains(search_query)
+                ]
+
+            if filter_status == "สินค้าใกล้หมด (< 10)":
+                df_filtered = df_filtered[df_filtered["จำนวนคงเหลือ"] < 10]
+            elif filter_status == "สินค้าหมดสต็อก (0)":
+                df_filtered = df_filtered[df_filtered["จำนวนคงเหลือ"] == 0]
+
+            if not df_filtered.empty:
+                st.dataframe(df_filtered.set_index("รหัสสินค้า"), use_container_width=True)
+            else:
+                st.warning("ไม่พบสินค้าที่ตรงกับการค้นหา")
         else:
             st.info("ยังไม่มีสินค้าในระบบ กรุณาเพิ่มสินค้าใหม่")
 
@@ -147,10 +169,27 @@ elif menu == "บันทึกการขาย":
         with col_hist:
             st.subheader("ประวัติการขาย")
             if st.session_state.sales_history:
-                df_s = pd.DataFrame(st.session_state.sales_history)[["รหัสสินค้า", "ชื่อสินค้า", "จำนวน", "total_price"]]
-                df_s.columns = ["รหัสสินค้า", "ชื่อสินค้า", "จำนวน", "ยอดขายรวม (บาท)"]
-                st.dataframe(df_s, use_container_width=True)
-                if st.button("🗑️ ลบประวัติการขายทั้งหมด"): st.session_state.sales_history = []; st.rerun()
+                # 🛠️ แสดงรายการขายพร้อมปุ่มลบแยกแต่ละแถว
+                for idx, item in enumerate(st.session_state.sales_history):
+                    c_info, c_btn = st.columns([3, 1])
+                    c_info.write(f"**{idx+1}. {item['รหัสสินค้า']} - {item['ชื่อสินค้า']}** | {item['จำนวน']} ชิ้น (฿{item['total_price']:,.2f})")
+                    if c_btn.button("🗑️ ลบ", key=f"del_sale_{idx}"):
+                        # คืนจำนวนสินค้าเข้าสต็อก
+                        if item["รหัสสินค้า"] in st.session_state.products:
+                            st.session_state.products[item["รหัสสินค้า"]]["จำนวนคงเหลือ"] += item["จำนวน"]
+                        # ลบรายการขาย
+                        st.session_state.sales_history.pop(idx)
+                        st.success("ลบรายการขายและคืนสต็อกเรียบร้อย!")
+                        st.rerun()
+                
+                st.write("---")
+                if st.button("⚠️ ลบประวัติการขายทั้งหมด"):
+                    # คืนสต็อกทั้งหมดก่อนลบ
+                    for item in st.session_state.sales_history:
+                        if item["รหัสสินค้า"] in st.session_state.products:
+                            st.session_state.products[item["รหัสสินค้า"]]["จำนวนคงเหลือ"] += item["จำนวน"]
+                    st.session_state.sales_history = []
+                    st.rerun()
             else: st.info("ยังไม่มีประวัติการขาย")
 
 # ------------------ 4. บันทึกรายจ่ายอื่นๆ ------------------
@@ -172,10 +211,19 @@ elif menu == "บันทึกรายจ่ายอื่นๆ":
     with c_exp2:
         st.subheader("ประวัติรายจ่าย")
         if st.session_state.expenses_history:
-            df_e = pd.DataFrame(st.session_state.expenses_history)
-            df_e.columns = ["รายการ", "จำนวนเงิน (บาท)"]
-            st.dataframe(df_e, use_container_width=True)
-            if st.button("🗑️ ลบประวัติรายจ่ายทั้งหมด"): st.session_state.expenses_history = []; st.rerun()
+            # 🛠️ แสดงรายการรายจ่ายพร้อมปุ่มลบแยกแต่ละแถว
+            for idx, item in enumerate(st.session_state.expenses_history):
+                c_info, c_btn = st.columns([3, 1])
+                c_info.write(f"**{idx+1}. {item['รายการ']}** | ฿{item['amount']:,.2f}")
+                if c_btn.button("🗑️ ลบ", key=f"del_exp_{idx}"):
+                    st.session_state.expenses_history.pop(idx)
+                    st.success("ลบรายการรายจ่ายเรียบร้อย!")
+                    st.rerun()
+            
+            st.write("---")
+            if st.button("⚠️ ลบประวัติรายจ่ายทั้งหมด"): 
+                st.session_state.expenses_history = []
+                st.rerun()
         else: st.info("ยังไม่มีบันทึกรายจ่าย")
 
 # ------------------ 5. สรุปบัญชีประจำปี & ปันผล ------------------
